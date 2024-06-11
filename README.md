@@ -11,8 +11,6 @@
 
 ### Installation
 
-Clone this repository to your local machine:
-
 ```bash
 pip install git+ssh://git@github.com/sodascience/remode.git
 ```
@@ -22,13 +20,13 @@ pip install git+ssh://git@github.com/sodascience/remode.git
 Here is a simple example of how to use the ReMode library:
 
 ```python
-from remode import ReMode
+from remode import ReMoDe
 
 # Sample data (histogram counts)
 xt_count = [20, 21, 20, 18, 35, 24, 21, 28, 35]
 
 # Create an instance of ReMoDe
-detector = ReMode()
+detector = ReMoDe()
 
 # Fit model
 results = detector.fit(xt_count)
