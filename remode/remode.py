@@ -9,7 +9,9 @@ from matplotlib.axes import Axes
 from scipy.stats import binomtest, fisher_exact
 
 
-def perform_fisher_test(x: np.ndarray, candidate: int, left_min: int, right_min: int) -> Tuple[float, float]:
+def perform_fisher_test(
+    x: np.ndarray, candidate: int, left_min: int, right_min: int
+) -> Tuple[float, float]:
     """
     Perform Fisher's exact test on both sides of a candidate maximum to test if it is a true local maximum.
 
@@ -29,13 +31,26 @@ def perform_fisher_test(x: np.ndarray, candidate: int, left_min: int, right_min:
     Tuple[float, float]
         The p-values of the Fisher's exact test for the left and right sides of the candidate maximum.
     """
-    left_matrix = np.array([[x[candidate], np.sum(x) - x[candidate]], [x[left_min], np.sum(x) - x[left_min]]])
-    right_matrix = np.array([[x[candidate], np.sum(x) - x[candidate]], [x[right_min], np.sum(x) - x[right_min]]])
-    p_left = fisher_exact(left_matrix, 'greater')[1]
-    p_right = fisher_exact(right_matrix, 'greater')[1]
+    left_matrix = np.array(
+        [
+            [x[candidate], np.sum(x) - x[candidate]],
+            [x[left_min], np.sum(x) - x[left_min]],
+        ]
+    )
+    right_matrix = np.array(
+        [
+            [x[candidate], np.sum(x) - x[candidate]],
+            [x[right_min], np.sum(x) - x[right_min]],
+        ]
+    )
+    p_left = fisher_exact(left_matrix, "greater")[1]
+    p_right = fisher_exact(right_matrix, "greater")[1]
     return p_left, p_right
 
-def perform_binomial_test(x: np.ndarray, candidate: int, left_min: int, right_min: int) -> Tuple[float, float]:
+
+def perform_binomial_test(
+    x: np.ndarray, candidate: int, left_min: int, right_min: int
+) -> Tuple[float, float]:
     """
     Perform binomial tests on both sides of a candidate maximum to test if it is a true local maximum.
 
@@ -57,8 +72,8 @@ def perform_binomial_test(x: np.ndarray, candidate: int, left_min: int, right_mi
     """
     n_left = x[candidate] + x[left_min]
     n_right = x[candidate] + x[right_min]
-    p_left = binomtest(x[candidate], n_left, alternative='greater').pvalue
-    p_right = binomtest(x[candidate], n_right, alternative='greater').pvalue
+    p_left = binomtest(x[candidate], n_left, alternative="greater").pvalue
+    p_right = binomtest(x[candidate], n_right, alternative="greater").pvalue
     return p_left, p_right
 
 
@@ -87,23 +102,32 @@ class ReMoDe:
     evaluate_robustness(iterations: int, percentage_steps: int) -> Dict[str, Any]:
         Evaluates the robustness of the detected modes using the jackknife resampling method.
     """
-    def __init__(self, 
-                 alpha: float = 0.05, 
-                 alpha_correction: Union[Literal["max_modes", "none"], Callable] = "max_modes", 
-                 statistical_test: Callable = perform_fisher_test):
+
+    def __init__(
+        self,
+        alpha: float = 0.05,
+        alpha_correction: Union[Literal["max_modes", "none"], Callable] = "max_modes",
+        statistical_test: Callable = perform_fisher_test,
+    ):
         self.alpha = alpha
 
         if isinstance(alpha_correction, str):
             if alpha_correction.lower() == "none":
-                self._create_alpha_correction = lambda length: self.alpha
+                self._create_alpha_correction = lambda length, alpha: alpha
             elif alpha_correction.lower() == "max_modes":
-                self._create_alpha_correction = lambda length: self.alpha / (np.floor((length + 1) / 2))
+                self._create_alpha_correction = lambda length, alpha: alpha / (
+                    np.floor((length + 1) / 2)
+                )
         else:
             # Test if the provided function is valid (has one argument)
             if not callable(alpha_correction):
-                raise ValueError("The alpha_correction argument must be a function or one of 'max_modes' or 'none'.")
+                raise ValueError(
+                    "The alpha_correction argument must be a function or one of 'max_modes' or 'none'."
+                )
             elif len(alpha_correction.__code__.co_varnames) != 1:
-                raise ValueError("The alpha_correction function must take one argument (the legnth of the bins).")
+                raise ValueError(
+                    "The alpha_correction function must take one argument (the legnth of the bins)."
+                )
             self._create_alpha_correction = alpha_correction
 
         self.alpha_cor: Optional[float] = None
@@ -112,7 +136,9 @@ class ReMoDe:
         self.xt: np.ndarray = np.array([])
         self.levels: np.ndarray = np.array([])
 
-    def format_data(self, xt: Union[np.ndarray, list], levels: Optional[np.ndarray] = None) -> np.ndarray:
+    def format_data(
+        self, xt: Union[np.ndarray, list], levels: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         """
         Formats the input data for mode detection.
 
@@ -131,9 +157,9 @@ class ReMoDe:
         if levels is None:
             # Ensure xt is a numpy array for processing
             levels = np.unique(xt)
-        
+
         levels_h = np.concatenate([levels - 0.01, [levels[-1] + 0.01]])
-    
+
         return np.histogram(xt, bins=levels_h)[0]
 
     def _find_maxima(self, xt: np.ndarray) -> np.ndarray:
@@ -155,7 +181,7 @@ class ReMoDe:
 
         result = []
         candidate = np.argmax(xt)
-        if candidate != 0 and candidate != len(xt) - 1:            
+        if candidate != 0 and candidate != len(xt) - 1:
             left_min = np.argmin(xt[:candidate])
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
@@ -163,10 +189,12 @@ class ReMoDe:
             if p_left < self.alpha_cor and p_right < self.alpha_cor:
                 result.append(candidate)
         result.extend(self._find_maxima(xt[:candidate]))
-        result.extend(self._find_maxima(xt[candidate + 1:]) + candidate + 1)
+        result.extend(self._find_maxima(xt[candidate + 1 :]) + candidate + 1)
         return np.unique(result)
 
-    def fit(self, xt: np.ndarray, set_data: bool = True, levels: np.ndarray = np.array([])) -> Dict[str, Any]:
+    def fit(
+        self, xt: np.ndarray, set_data: bool = True, levels: np.ndarray = np.array([])
+    ) -> Dict[str, Any]:
         """
         Fits the model to the input data and returns the detected modes.
 
@@ -188,7 +216,7 @@ class ReMoDe:
         Dict[str, Any]
             A dictionary containing the detected modes and their properties. The keys of the dictionary are the indices of the modes, and the values are the properties of the modes.
         """
-        self.alpha_cor = self._create_alpha_correction(len(xt))
+        self.alpha_cor = self._create_alpha_correction(len(xt), self.alpha)
         xt_padded: np.ndarray = np.concatenate((np.array([0]), xt, np.array([0])))
         modes = self._find_maxima(xt_padded)
         modes -= 1
@@ -196,7 +224,7 @@ class ReMoDe:
         if len(levels) == 0:
             self.levels = np.arange(len(xt))
         else:
-            self.levels = levels  
+            self.levels = levels
 
         if set_data:
             self.xt = xt
@@ -206,12 +234,12 @@ class ReMoDe:
             "nr_of_modes": len(modes),
             "modes": modes,
             "xt": xt,
-            "alpha": self.alpha_cor
+            "alpha_after_correction": self.alpha_cor,
         }
 
-
-
-    def plot_maxima(self, ax: Optional[Axes] = None, format_plot: Optional[bool] = True) -> None:
+    def plot_maxima(
+        self, ax: Optional[Axes] = None, format_plot: Optional[bool] = True
+    ) -> None:
         """
         Formats the input data for mode detection.
 
@@ -234,21 +262,29 @@ class ReMoDe:
         if ax is None:
             _, ax = plt.subplots()
 
-        ax.bar(self.levels, self.xt, color='lightgrey', zorder=9, label=None)
+        ax.bar(self.levels, self.xt, color="lightgrey", zorder=9, label=None)
         if len(self.modes) > 0:
-            ax.bar(np.take(self.levels, self.modes), 
-                   np.take(self.xt, self.modes), 
-                   color='navy', 
-                   zorder=10, 
-                   alpha=0.5,
-                   label='Modes'
-                   )
+            ax.bar(
+                np.take(self.levels, self.modes),
+                np.take(self.xt, self.modes),
+                color="navy",
+                zorder=10,
+                alpha=0.5,
+                label="Modes",
+            )
 
         if format_plot:
             ax.set_xticks(self.levels)
             self._format_plot(ax)
 
-    def _format_plot(self, ax, xlabel="Category", ylabel="Frequency", title="Modes detected", legend=True):
+    def _format_plot(
+        self,
+        ax,
+        xlabel="Category",
+        ylabel="Frequency",
+        title="Modes detected",
+        legend=True,
+    ):
         """
         Formats the plot with the given title and standard settings.
 
@@ -263,7 +299,7 @@ class ReMoDe:
         title : str
             The title to set for the plot.
         legend : bool
-            Whether to show the legend. Default is True.    
+            Whether to show the legend. Default is True.
 
         Returns
         -------
@@ -271,16 +307,14 @@ class ReMoDe:
         """
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-        ax.grid(axis='y', zorder=0)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
+        ax.grid(axis="y", zorder=0)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
         ax.set_title(title, loc="left")
         if legend:
             ax.legend()
-
-
 
     def _jackknife(self, percentage: float) -> np.ndarray:
         """
@@ -305,12 +339,14 @@ class ReMoDe:
         if n_delete > 0:
             x_remove = np.random.choice(x, n_delete, replace=False)
             remove_count = np.bincount(x_remove, minlength=len(self.xt))
-            
+
             return np.bincount(x, minlength=len(self.xt)) - remove_count
 
-        return np.bincount(x, minlength=len(self.xt)) 
+        return np.bincount(x, minlength=len(self.xt))
 
-    def evaluate_robustness(self, iterations: int = 100, percentage_steps: int = 10) -> Dict[str, Any]:
+    def evaluate_robustness(
+        self, iterations: int = 100, percentage_steps: int = 10
+    ) -> Dict[str, Any]:
         """
         Evaluates the robustness of the detected modes using the jackknife resampling method.
 
@@ -327,34 +363,45 @@ class ReMoDe:
             A dictionary containing the results of the robustness evaluation.
         """
         if len(self.modes) == 0:
-            raise ValueError("Please fit the model first before performing robustness analysis.")
+            raise ValueError(
+                "Please fit the model first before performing robustness analysis."
+            )
 
         perc_range = np.linspace(0, 100, percentage_steps)
-        modes = pd.DataFrame({
-            'perc': perc_range,
-            'mean_modality': np.nan,
-            'most_freq_modality': np.nan,
-            'majority_result': np.nan
-        })
+        modes = pd.DataFrame(
+            {
+                "perc": perc_range,
+                "mean_modality": np.nan,
+                "most_freq_modality": np.nan,
+                "majority_result": False,
+            }
+        )
 
-        modes.at[0, 'mean_modality'] = len(self.modes)
-        modes.at[0, 'most_freq_modality'] = len(self.modes)
-        modes.at[0, 'majority_result'] = True
+        modes.at[0, "mean_modality"] = len(self.modes)
+        modes.at[0, "most_freq_modality"] = len(self.modes)
+        modes.at[0, "majority_result"] = True
 
         for i in range(1, len(perc_range)):
             m = np.zeros(iterations)
             for j in range(iterations):
-                xt_jackknifed = self._jackknife(modes.at[i, 'perc'])
-                m[j] = self.fit(xt_jackknifed, set_data=False)['nr_of_modes']
+                xt_jackknifed = self._jackknife(modes.at[i, "perc"])
+                m[j] = self.fit(xt_jackknifed, set_data=False)["nr_of_modes"]
 
-            modes.at[i, 'mean_modality'] = np.mean(m)
-            modes.at[i, 'most_freq_modality'] = Counter(m).most_common(1)[0][0]
-            modes.at[i, 'majority_result'] = np.mean(m == modes.at[i, 'most_freq_modality']) >= 0.5
+            modes.at[i, "mean_modality"] = np.mean(m)
+            modes.at[i, "most_freq_modality"] = Counter(m).most_common(1)[0][0]
+            modes.at[i, "majority_result"] = (
+                np.mean(m == modes.at[i, "most_freq_modality"]) >= 0.5
+            )
 
-        modes.loc[len(perc_range)-1, ['mean_modality', 'most_freq_modality', 'majority_result']] = [0, 0, False]
-        robust_until = modes.loc[(modes['majority_result'] == 1) & 
-                                 (modes["most_freq_modality"] == modes.at[0, 'most_freq_modality']),
-                                 "perc"].max()
+        modes.loc[
+            len(perc_range) - 1,
+            ["mean_modality", "most_freq_modality", "majority_result"],
+        ] = [0, 0, False]
+        robust_until = modes.loc[
+            (modes["majority_result"] == 1)
+            & (modes["most_freq_modality"] == modes.at[0, "most_freq_modality"]),
+            "perc",
+        ].max()
 
         plt.figure(figsize=(12, 4))
         gs = gridspec.GridSpec(1, 3)  # 1 row, 3 columns
@@ -363,12 +410,28 @@ class ReMoDe:
         self.plot_maxima(ax1)
 
         ax2 = plt.subplot(gs[0, 1:])  # right subplot in the third column
-        plt.step(modes['perc'], modes['mean_modality'], where='mid', label='Mean Modality', color='navy')
-        plt.step(modes['perc'], modes['most_freq_modality'], where='mid', linestyle='--', label='Most Frequent Modality', color='cornflowerblue')
-        self._format_plot(ax2, xlabel='Percentage of Data Removed', ylabel='Modality', title='Robustness Analysis', legend=True)
+        plt.step(
+            modes["perc"],
+            modes["mean_modality"],
+            where="mid",
+            label="Mean Modality",
+            color="navy",
+        )
+        plt.step(
+            modes["perc"],
+            modes["most_freq_modality"],
+            where="mid",
+            linestyle="--",
+            label="Most Frequent Modality",
+            color="cornflowerblue",
+        )
+        self._format_plot(
+            ax2,
+            xlabel="Percentage of Data Removed",
+            ylabel="Modality",
+            title="Robustness Analysis",
+            legend=True,
+        )
         plt.tight_layout()
 
-        return {
-            "jacknife_df": modes,
-            "robust_until": robust_until
-        }
+        return {"jacknife_df": modes, "robust_until": robust_until}
