@@ -14,19 +14,26 @@ authors = [
 ]
 
 dependencies = [
-    "numpy>=1.21.2",
-    "matplotlib>=3.4.3",
-    "pandas>=1.3.3",
-    "scipy>=1.7.1"
+    "numpy",
+    "matplotlib",
+    "pandas",
+    "scipy"
 ]
 readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["metadata", "open-data", "privacy", "synthetic-data", "tabular datasets"]
+license = { file = "LICENSE" }
+
+dynamic = ["version"]
 
 classifiers = [
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
 ]
 
@@ -35,7 +42,7 @@ pytest = ">=6.2.5"
 
 [project.optional-dependencies]
 test = [
-    "pytest>=6.2.5"
+    "ruff", "pytest", "mypy"
 ]
 
 [project.urls]
@@ -48,5 +55,5 @@ disallow_untyped_defs = false
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "scipy.stats.*"
+module = ["scipy.stats.*", "pandas.*"]
 ignore_missing_imports = true
