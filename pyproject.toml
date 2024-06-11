@@ -20,7 +20,7 @@ dependencies = [
 ]
 readme = "README.md"
 requires-python = ">=3.8"
-keywords = ["metadata", "open-data", "privacy", "synthetic-data", "tabular datasets"]
+keywords = ["mode detection", "remode", "ordinal data", "modality", "maximum detection"]
 license = { file = "LICENSE" }
 
 dynamic = ["version"]
