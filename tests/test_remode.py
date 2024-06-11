@@ -1,3 +1,4 @@
+"""Tests for the ReMoDe class."""
 import numpy as np
 from remode import ReMoDe, perform_fisher_test, perform_binomial_test
 

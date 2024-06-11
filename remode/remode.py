@@ -1,3 +1,5 @@
+"""Recursive Mode Detection (ReMoDe) for ordinal data."""
+
 from collections import Counter
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
