@@ -27,8 +27,8 @@ def test_perform_binomial_test():
 
 
 def custom_alpha_function():
-    remode = ReMoDe(alpha=0.05, alpha_correction=lambda x: 0.1)
-    assert remode._create_alpha_correction(10) == 0.1
+    remode = ReMoDe(alpha=0.05, alpha_correction=lambda len, alpha: 0.1)
+    assert remode._create_alpha_correction(10, 0.1) == 0.1
 
 
 def test_remode_initialization():
@@ -36,13 +36,13 @@ def test_remode_initialization():
         alpha=0.05, alpha_correction="none", statistical_test=perform_fisher_test
     )
     assert remode.alpha == 0.05
-    assert remode._create_alpha_correction(10) == 0.05
+    assert remode._create_alpha_correction(10, 0.05) == 0.05
     assert remode.statistical_test == perform_fisher_test
 
     remode = ReMoDe(
         alpha=0.05, alpha_correction="max_modes", statistical_test=perform_fisher_test
     )
-    assert remode._create_alpha_correction(10) == 0.01
+    assert remode._create_alpha_correction(10, 0.05) == 0.01
     assert remode.statistical_test == perform_fisher_test
 
 
