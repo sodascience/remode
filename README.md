@@ -13,16 +13,9 @@
 
 Clone this repository to your local machine:
 
-bash
-
-git clone https://github.com/yourusername/remode.git
-
-Navigate to the remode directory and install the required dependencies:
-
-bash
-
-cd remode
-pip install -r requirements.txt
+```bash
+pip install git+ssh://git@github.com/sodascience/remode.git
+```
 
 ### Usage
 
@@ -38,13 +31,13 @@ xt_count = [20, 21, 20, 18, 35, 24, 21, 28, 35]
 detector = ReMode()
 
 # Fit model
-results = detector.fit(data)
+results = detector.fit(xt_count)
 
 # Plot the results
 detector.plot_maxima()
 
 # Perform robustness analysis
-robustness_info = detector.remode_robustness(iterations=100, percentage_steps=50)
+robustness_info = detector.evaluate_robustness(percentage_steps=50)
 
 ```
 
@@ -74,7 +67,7 @@ This project is licensed under the GNU GPLv3. This allows you to do almost anyth
 
 ## Contact
 
-This project is a port of the R version of [`ReMoDe`](https://github.com/hvdmaas/remode) . It is maintained by the [ODISSEI Social Data
+This project is a port of the R version of [`ReMoDe`](https://github.com/hvdmaas/remode). It is maintained by the [ODISSEI Social Data
 Science (SoDa)](https://odissei-data.nl/nl/soda/) team.
 
 <img src="soda_logo.png" alt="SoDa logo" width="250px"/>
