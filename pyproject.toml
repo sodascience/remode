@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ReMoDe"
-version = "0.1.0"
 description = "Recursive Mode Detection for ordinal data"
 authors = [
     { name = "Javier Garcia-Bernardo", email = "j.garciabernardo@uu.nl" },
@@ -26,6 +25,7 @@ license = { file = "LICENSE" }
 
 dynamic = ["version"]
 
+
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -37,8 +37,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-[tool.test]
-pytest = ">=6.2.5"
+
+[tool.setuptools_scm]
+write_to = "remode/_version.py"
+
 
 [project.optional-dependencies]
 test = [
