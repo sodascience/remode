@@ -76,11 +76,11 @@ def test_jackknife():
     assert len(resampled_data) == 5
 
 
-def test_evaluate_robustness():
+def test_evaluate_stability():
     remode = ReMoDe()
     remode.xt = np.array([1, 2, 20, 2, 1])
     remode.modes = np.array([2])
-    result = remode.evaluate_robustness(iterations=100, percentage_steps=5)
+    result = remode.evaluate_stability(iterations=100, percentage_steps=5)
     assert "jacknife_df" in result
     assert "robust_until" in result
     assert result["robust_until"] == 75

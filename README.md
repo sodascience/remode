@@ -6,7 +6,7 @@
 - Mode Detection: Identifies all potential local maxima in the dataset.
 - Statistical Tests: Implements Fisher's exact test and binomial tests to validate modes.
 - Data Formatting: Converts raw data into histogram format for analysis.
-- Robustness Analysis: Includes functionality to assess the robustness of detected modes using jackknife resampling.
+- Stability Analysis: Includes functionality to assess the stability of detected modes using jackknife resampling.
 - Visualization: Provides methods to plot the histogram of data along with identified modes.
 
 ### Installation
@@ -34,8 +34,8 @@ results = detector.fit(xt_count)
 # Plot the results
 detector.plot_maxima()
 
-# Perform robustness analysis
-robustness_info = detector.evaluate_robustness(percentage_steps=50)
+# Perform stability analysis
+stability_info = detector.evaluate_stability(percentage_steps=50)
 
 ```
 
