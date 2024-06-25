@@ -346,118 +346,119 @@ class ReMoDe:
 
         return np.bincount(x, minlength=len(self.xt))
 
-def evaluate_stability(
-        self, iterations: int = 100, percentage_steps: int = 10, plot: bool = True
-    ) -> Dict[str, Any]:
-    """
-    Evaluates the stability of the detected modes using the jackknife resampling method.
+    def evaluate_stability(
+            self, iterations: int = 100, percentage_steps: int = 10, plot: bool = True
+        ) -> Dict[str, Any]:
+        """
+        Evaluates the stability of the detected modes using the jackknife resampling method.
 
-    Parameters
-    ----------
-    iterations : int
-        The number of iterations to perform for the jackknife resampling.
-    percentage_steps : int
-        The number of percentage steps to remove in the jackknife resampling.
-    plot : bool
-        Whether to plot the stability analysis results.
+        Parameters
+        ----------
+        iterations : int
+            The number of iterations to perform for the jackknife resampling.
+        percentage_steps : int
+            The number of percentage steps to remove in the jackknife resampling.
+        plot : bool
+            Whether to plot the stability analysis results.
 
-    Returns
-    -------
-    Dict[str, Any]
-        A dictionary containing the results of the stability evaluation.
-    """
-    if len(self.modes) == 0:
-        raise ValueError(
-            "Please fit the model first before performing stability analysis."
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing the results of the stability evaluation.
+        """
+        if len(self.modes) == 0:
+            raise ValueError(
+                "Please fit the model first before performing stability analysis."
+            )
+
+        perc_range = np.linspace(0, 100, percentage_steps)
+        modes = pd.DataFrame(
+            {
+                "perc": perc_range,
+                "mean_modality": np.nan,
+                "most_freq_modality": np.nan,
+                "majority_result": False,
+            }
         )
 
-    perc_range = np.linspace(0, 100, percentage_steps)
-    modes = pd.DataFrame(
-        {
-            "perc": perc_range,
-            "mean_modality": np.nan,
-            "most_freq_modality": np.nan,
-            "majority_result": False,
+        modes.at[0, "mean_modality"] = len(self.modes)
+        modes.at[0, "most_freq_modality"] = len(self.modes)
+        modes.at[0, "majority_result"] = True
+
+        # Initialize matrix to store data counts of mode locations
+        modes_locations = np.zeros((percentage_steps + 1, len(self.xt)))
+        modes_locations[0, self.modes] = iterations
+
+        for i in range(1, len(perc_range)):
+            m = np.zeros(iterations)
+            for j in range(iterations):
+                xt_jackknifed = self._jackknife(modes.at[i, "perc"])
+                r = self.fit(xt_jackknifed, set_data=False)
+                m[j] = r["nr_of_modes"]
+                # Update mode location matrix
+                for mode in r["modes"]:
+                    modes_locations[i, mode] += 1
+
+            modes.at[i, "mean_modality"] = np.mean(m)
+            modes.at[i, "most_freq_modality"] = Counter(m).most_common(1)[0][0]
+            modes.at[i, "majority_result"] = (
+                np.mean(m == modes.at[i, "most_freq_modality"]) >= 0.5
+            )
+
+
+        modes.loc[len(perc_range) - 1, ["mean_modality", "most_freq_modality", "majority_result"]] = [0, 0, False]
+        modes_locations[len(perc_range) - 1, :] = 0
+
+        stable_until = modes.loc[
+            (modes["majority_result"] == 1) & (modes["most_freq_modality"] == modes.at[0, "most_freq_modality"]),
+            "perc"
+        ].max()
+        
+        # Calculate the stability of the location of detected modes
+        stability_location = np.apply_along_axis(
+            lambda x: (np.argmax(x > (iterations / 2)) - 1) / len(perc_range),
+            axis=0,
+            arr=modes_locations
+        )
+        
+        stability_location = stability_location[stability_location > 0]
+        stability_location = np.column_stack((sorted(self.modes), stability_location))
+        stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
+
+        if plot:
+            plt.figure(figsize=(12, 4))
+            gs = gridspec.GridSpec(1, 2)  # 1 row, 2 columns
+
+            ax1 = plt.subplot(gs[0, 0])  # left subplot spans first two columns
+            self.plot_maxima(ax1)
+
+            ax2 = plt.subplot(gs[0, 1])  # right subplot in the third column
+            plt.step(
+                modes["perc"],
+                modes["mean_modality"],
+                where="mid",
+                label="Mean Modality",
+                color="navy",
+            )
+            plt.step(
+                modes["perc"],
+                modes["most_freq_modality"],
+                where="mid",
+                linestyle="--",
+                label="Most Frequent Modality",
+                color="cornflowerblue",
+            )
+            self._format_plot(
+                ax2,
+                xlabel="Percentage of Data Removed",
+                ylabel="Modality",
+                title=f"Modes: {len(self.modes)}, stability {stable_until}%",
+                legend=True,
+            )
+            plt.tight_layout()
+
+        return {
+            "num_mode_stability": modes,
+            "stable_until": stable_until,
+            "location_stability": stability_location_df
         }
-    )
-
-    modes.at[0, "mean_modality"] = len(self.modes)
-    modes.at[0, "most_freq_modality"] = len(self.modes)
-    modes.at[0, "majority_result"] = True
-
-    # Initialize matrix to store data counts of mode locations
-    modes_locations = np.zeros((percentage_steps + 1, len(self.xt)))
-    modes_locations[0, self.modes] = iterations
-
-    for i in range(1, len(perc_range)):
-        m = np.zeros(iterations)
-        for j in range(iterations):
-            xt_jackknifed = self._jackknife(modes.at[i, "perc"])
-            r = self.fit(xt_jackknifed, set_data=False)
-            m[j] = r["nr_of_modes"]
-            # Update mode location matrix
-            for mode in r["modes"]:
-                modes_locations[i, mode] += 1
-
-        modes.at[i, "mean_modality"] = np.mean(m)
-        modes.at[i, "most_freq_modality"] = Counter(m).most_common(1)[0][0]
-        modes.at[i, "majority_result"] = (
-            np.mean(m == modes.at[i, "most_freq_modality"]) >= 0.5
-        )
-
-
-    modes.at[len(perc_range) - 1, ["mean_modality", "most_freq_modality", "majority_result"]] = [0, 0, False]
-    modes_locations[len(perc_range) - 1, :] = 0
-
-    stable_until = modes.loc[
-        (modes["majority_result"] == 1) & (modes["most_freq_modality"] == modes.at[0, "most_freq_modality"]),
-        "perc"
-    ].max()
-
-    # Calculate the stability of the location of detected modes
-    stability_location = np.apply_along_axis(
-        lambda x: (np.argmax(x > (iterations / 2)) - 1) / len(perc_range),
-        axis=0,
-        arr=modes_locations
-    )
-    stability_location = stability_location[stability_location > 0]
-    stability_location = np.column_stack((sorted(self.modes), stability_location))
-    stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
-
-    if plot:
-        plt.figure(figsize=(12, 4))
-        gs = gridspec.GridSpec(1, 2)  # 1 row, 2 columns
-
-        ax1 = plt.subplot(gs[0, 0])  # left subplot spans first two columns
-        self.plot_maxima(ax1)
-
-        ax2 = plt.subplot(gs[0, 1])  # right subplot in the third column
-        plt.step(
-            modes["perc"],
-            modes["mean_modality"],
-            where="mid",
-            label="Mean Modality",
-            color="navy",
-        )
-        plt.step(
-            modes["perc"],
-            modes["most_freq_modality"],
-            where="mid",
-            linestyle="--",
-            label="Most Frequent Modality",
-            color="cornflowerblue",
-        )
-        self._format_plot(
-            ax2,
-            xlabel="Percentage of Data Removed",
-            ylabel="Modality",
-            title=f"Modes: {len(self.modes)}, stability {stable_until}%",
-            legend=True,
-        )
-        plt.tight_layout()
-
-    return {
-        "num_mode_stability": modes,
-        "stable_until": stable_until,
-        "location_stability": stability_location_df
-    }
