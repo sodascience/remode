@@ -90,8 +90,8 @@ class ReMoDe:
     ----------
     alpha : float
         The significance level for the statistical tests. Default is 0.05.
-    alpha_correction : str
-        The method for correcting the significance level for multiple comparisons. Options are "max_modes" and "bonferroni". Default is "max_modes".
+    alpha_correction : str or function
+        The method for correcting the significance level for multiple comparisons. Options are "max_modes" and "none". Default is "none".
     statistical_test : function
         The statistical test to use for identifying local maxima. Options are `perform_fisher_test` and `perform_binomial_test`. Default is `perform_fisher_test`.
 
@@ -108,7 +108,7 @@ class ReMoDe:
     def __init__(
         self,
         alpha: float = 0.05,
-        alpha_correction: Union[Literal["max_modes", "none"], Callable] = "max_modes",
+        alpha_correction: Union[Literal["max_modes", "none"], Callable] = "none",
         statistical_test: Callable = perform_fisher_test,
     ):
         self.alpha = alpha
@@ -126,9 +126,9 @@ class ReMoDe:
                 raise ValueError(
                     "The alpha_correction argument must be a function or one of 'max_modes' or 'none'."
                 )
-            elif len(alpha_correction.__code__.co_varnames) != 1:
+            elif len(alpha_correction.__code__.co_varnames) != 2:
                 raise ValueError(
-                    "The alpha_correction function must take one argument (the legnth of the bins)."
+                    "The alpha_correction function must take two arguments (the legnth of the bins and the alpha level)."
                 )
             self._create_alpha_correction = alpha_correction
 
@@ -187,7 +187,6 @@ class ReMoDe:
             left_min = np.argmin(xt[:candidate])
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
-
             if p_left < self.alpha_cor and p_right < self.alpha_cor:
                 result.append(candidate)
         result.extend(self._find_maxima(xt[:candidate]))
@@ -414,21 +413,21 @@ class ReMoDe:
             (modes["majority_result"] == 1) & (modes["most_freq_modality"] == modes.at[0, "most_freq_modality"]),
             "perc"
         ].max()
-        
+
         # Calculate the stability of the location of detected modes
         stability_location = np.apply_along_axis(
             lambda x: (np.argmax(x > (iterations / 2)) - 1) / len(perc_range),
             axis=0,
             arr=modes_locations
         )
-        
+
         stability_location = stability_location[stability_location > 0]
         # Ensure compatibility in dimensions
         if len(stability_location) > 0:
-          stability_location = np.column_stack((sorted(self.modes), stability_location))
-          stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
+            stability_location = np.column_stack((sorted(self.modes), stability_location))
+            stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
         else:
-          stability_location_df = pd.DataFrame(columns=["Mode location", "Stability estimate"])
+            stability_location_df = pd.DataFrame(columns=["Mode location", "Stability estimate"])
 
         if plot:
             plt.figure(figsize=(12, 4))
