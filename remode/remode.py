@@ -368,8 +368,9 @@ class ReMoDe:
         """
         if len(self.modes) == 0:
             raise ValueError(
-                "Please fit the model first before performing stability analysis."
+                "It appears that either you did not yet apply ReMoDe or that no modes were found. Stability analyses can only be performed on modes detected by ReMoDe."
             )
+
 
         perc_range = np.linspace(0, 100, percentage_steps)
         modes = pd.DataFrame(
@@ -422,8 +423,12 @@ class ReMoDe:
         )
         
         stability_location = stability_location[stability_location > 0]
-        stability_location = np.column_stack((sorted(self.modes), stability_location))
-        stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
+        # Ensure compatibility in dimensions
+        if len(stability_location) > 0:
+          stability_location = np.column_stack((sorted(self.modes), stability_location))
+          stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
+        else:
+          stability_location_df = pd.DataFrame(columns=["Mode location", "Stability estimate"])
 
         if plot:
             plt.figure(figsize=(12, 4))
