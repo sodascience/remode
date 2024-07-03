@@ -23,7 +23,7 @@ Here is a simple example of how to use the ReMode library:
 from remode import ReMoDe
 
 # Sample data (histogram counts)
-xt_count = [20, 21, 20, 18, 35, 24, 21, 28, 35]
+xt_count = [8, 20, 5, 2, 6, 2, 30]
 
 # Create an instance of ReMoDe
 detector = ReMoDe()
