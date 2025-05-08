@@ -39,6 +39,7 @@ stability_info = detector.evaluate_stability(percentage_steps=50)
 
 ```
 
+See also the tutorial [here](https://github.com/sodascience/remode/blob/main/tutorial.ipynb).
 
 ### Citation
 
