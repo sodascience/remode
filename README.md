@@ -12,7 +12,7 @@
 ### Installation
 
 ```bash
-pip install git+https://git@github.com/sodascience/remode.git@main
+pip install remode
 ```
 
 ### Usage
