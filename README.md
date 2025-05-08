@@ -42,9 +42,13 @@ stability_info = detector.evaluate_stability(percentage_steps=50)
 
 ### Citation
 
-Please cite the following paper
+Please cite the following paper:
 ```
-To be added
+TBA
+```
+and the following software
+```
+Garcia-Bernardo, J., Hoffstadt, M., & van der Maas, H. L. J. (2025). ReMoDe: a Python library for efficient mode detection in ordinal data distributions. Zenodo. https://doi.org/10.5281/zenodo.15366121
 ```
 
 ### Contributing
