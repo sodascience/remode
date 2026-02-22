@@ -40,6 +40,14 @@ classifiers = [
 test = [
     "ruff", "pytest", "mypy"
 ]
+docs = [
+    "sphinx>=7,<9",
+    "pydata-sphinx-theme>=0.15",
+    "myst-parser>=2,<5",
+    "myst-nb>=1,<2",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.6"
+]
 
 [tool.setuptools_scm]
 write_to = "remode/_version.py"

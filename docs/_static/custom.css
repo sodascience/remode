@@ -1,0 +1,20 @@
+:root {
+  --pst-color-primary: #155fa0;
+  --pst-color-secondary: #15806b;
+}
+
+.hero {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--pst-color-border);
+  border-radius: 0.75rem;
+  background: linear-gradient(120deg, #f2f7fb 0%, #f8fcfb 100%);
+  margin-bottom: 1.25rem;
+}
+
+.hero h1 {
+  margin-bottom: 0.4rem;
+}
+
+.hero p {
+  margin: 0;
+}
