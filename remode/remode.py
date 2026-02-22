@@ -1,8 +1,8 @@
 """Recursive Mode Detection (ReMoDe) for ordinal data."""
 
+import warnings
 from collections import Counter
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
-import warnings
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt

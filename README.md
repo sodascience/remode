@@ -5,6 +5,7 @@
 ### Features
 - Mode Detection: Identifies all potential local maxima in the dataset.
 - Statistical Tests: Implements Fisher's exact test and binomial tests to validate modes.
+- Mode Statistics: Returns per-mode p-values and approximate Bayes factors.
 - Data Formatting: Converts raw data into histogram format for analysis.
 - Stability Analysis: Includes functionality to assess the stability of detected modes using jackknife resampling.
 - Visualization: Provides methods to plot the histogram of data along with identified modes.
@@ -26,16 +27,21 @@ from remode import ReMoDe
 xt_count = [8, 20, 5, 2, 6, 2, 30]
 
 # Create an instance of ReMoDe
-detector = ReMoDe()
+detector = ReMoDe(alpha_correction="descriptive_peaks")  # default
 
 # Fit model
 results = detector.fit(xt_count)
+# results contains:
+# - nr_of_modes
+# - modes
+# - p_values
+# - approx_bayes_factors
 
 # Plot the results
 detector.plot_maxima()
 
 # Perform stability analysis
-stability_info = detector.evaluate_stability(percentage_steps=50)
+stability_info = detector.remode_stability(percentage_steps=50)
 
 ```
 
