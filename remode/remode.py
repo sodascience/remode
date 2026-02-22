@@ -2,6 +2,7 @@
 
 from collections import Counter
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
+import warnings
 
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -154,7 +155,7 @@ class ReMoDe:
         Formats the input data for mode detection.
     fit(xt: np.ndarray) -> Dict[str, Union[int, np.ndarray]]:
         Fits the model to the input data and returns the detected modes.
-    evaluate_stability(iterations: int, percentage_steps: int) -> Dict[str, Any]:
+    remode_stability(iterations: int, percentage_steps: int) -> Dict[str, Any]:
         Evaluates the stability of the detected modes using the jackknife resampling method.
     """
 
@@ -451,9 +452,9 @@ class ReMoDe:
 
         return np.bincount(x, minlength=len(self.xt))
 
-    def evaluate_stability(
-            self, iterations: int = 100, percentage_steps: int = 10, plot: bool = True
-        ) -> Dict[str, Any]:
+    def remode_stability(
+        self, iterations: int = 100, percentage_steps: int = 10, plot: bool = True
+    ) -> Dict[str, Any]:
         """
         Evaluates the stability of the detected modes using the jackknife resampling method.
 
@@ -476,8 +477,7 @@ class ReMoDe:
                 "It appears that either you did not yet apply ReMoDe or that no modes were found. Stability analyses can only be performed on modes detected by ReMoDe."
             )
 
-
-        perc_range = np.linspace(0, 100, percentage_steps)
+        perc_range = np.linspace(0, 100, percentage_steps + 1)
         modes = pd.DataFrame(
             {
                 "perc": perc_range,
@@ -492,10 +492,10 @@ class ReMoDe:
         modes.at[0, "majority_result"] = True
 
         # Initialize matrix to store data counts of mode locations
-        modes_locations = np.zeros((percentage_steps + 1, len(self.xt)))
+        modes_locations = np.zeros((len(perc_range), len(self.xt)))
         modes_locations[0, self.modes] = iterations
 
-        for i in range(1, len(perc_range)):
+        for i in range(1, len(perc_range) - 1):
             m = np.zeros(iterations)
             for j in range(iterations):
                 xt_jackknifed = self._jackknife(modes.at[i, "perc"])
@@ -508,30 +508,37 @@ class ReMoDe:
             modes.at[i, "mean_modality"] = np.mean(m)
             modes.at[i, "most_freq_modality"] = Counter(m).most_common(1)[0][0]
             modes.at[i, "majority_result"] = (
-                np.mean(m == modes.at[i, "most_freq_modality"]) >= 0.5
+                np.mean(m == len(self.modes)) >= 0.5
             )
-
 
         modes.loc[len(perc_range) - 1, ["mean_modality", "most_freq_modality", "majority_result"]] = [0, 0, False]
         modes_locations[len(perc_range) - 1, :] = 0
 
-        stable_until = modes.loc[
-            (modes["majority_result"] == 1) & (modes["most_freq_modality"] == modes.at[0, "most_freq_modality"]),
-            "perc"
-        ].max()
+        false_indices = np.where(~modes["majority_result"].astype(bool).to_numpy())[0]
+        if len(false_indices) == 0:
+            stable_until = float(modes["perc"].max())
+        elif false_indices[0] == 0:
+            stable_until = 0.0
+        else:
+            stable_until = float(modes["perc"].iloc[false_indices[0] - 1])
 
         # Calculate the stability of the location of detected modes
-        stability_location = np.apply_along_axis(
-            lambda x: (np.argmax(x > (iterations / 2)) - 1) / len(perc_range),
-            axis=0,
-            arr=modes_locations
-        )
-
-        stability_location = stability_location[stability_location > 0]
-        # Ensure compatibility in dimensions
-        if len(stability_location) > 0:
-            stability_location = np.column_stack((sorted(self.modes), stability_location))
-            stability_location_df = pd.DataFrame(stability_location, columns=["Mode location", "Stability estimate"])
+        if len(self.modes) > 0:
+            sorted_modes = np.sort(self.modes.astype(int))
+            stability_estimates = np.apply_along_axis(
+                lambda x: np.argmin(x > (iterations / 2)) / modes_locations.shape[0],
+                axis=0,
+                arr=modes_locations[:, sorted_modes],
+            )
+            stability_location_df = pd.DataFrame(
+                {
+                    "Mode location": sorted_modes,
+                    "Stability estimate": stability_estimates,
+                }
+            )
+            stability_location_df = stability_location_df[
+                stability_location_df["Stability estimate"] > 0
+            ].reset_index(drop=True)
         else:
             stability_location_df = pd.DataFrame(columns=["Mode location", "Stability estimate"])
 
@@ -572,3 +579,19 @@ class ReMoDe:
             "stable_until": stable_until,
             "location_stability": stability_location_df
         }
+
+    def evaluate_stability(
+        self, iterations: int = 100, percentage_steps: int = 10, plot: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Deprecated alias for ``remode_stability``.
+        """
+        warnings.warn(
+            "'evaluate_stability' is deprecated and will be removed in a future release; "
+            "use 'remode_stability' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.remode_stability(
+            iterations=iterations, percentage_steps=percentage_steps, plot=plot
+        )

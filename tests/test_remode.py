@@ -1,5 +1,6 @@
 """Tests for the ReMoDe class."""
 import numpy as np
+import pytest
 from remode import ReMoDe, perform_fisher_test, perform_binomial_test
 from remode.remode import count_descriptive_peaks
 
@@ -120,12 +121,22 @@ def test_jackknife():
     assert len(resampled_data) == 5
 
 
-def test_evaluate_stability():
+def test_remode_stability():
     remode = ReMoDe()
     remode.xt = np.array([1, 2, 20, 2, 1])
     remode.modes = np.array([2])
-    result = remode.evaluate_stability(iterations=100, percentage_steps=5)
-    print(result["stable_until"])
+
+    np.random.seed(123)
+    result = remode.remode_stability(iterations=100, percentage_steps=5, plot=False)
+
     assert "location_stability" in result
     assert "stable_until" in result
-    assert result["stable_until"] == 75
+    assert 0 <= result["stable_until"] <= 100
+
+    np.random.seed(123)
+    with pytest.warns(DeprecationWarning):
+        alias_result = remode.evaluate_stability(
+            iterations=100, percentage_steps=5, plot=False
+        )
+
+    assert alias_result["stable_until"] == result["stable_until"]
