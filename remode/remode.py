@@ -170,9 +170,9 @@ class ReMoDe:
         self.alpha = alpha
 
         def _segment_length(segment: Union[np.ndarray, int]) -> int:
-            if np.isscalar(segment):
-                return int(segment)
-            return len(segment)
+            if isinstance(segment, np.ndarray):
+                return len(segment)
+            return int(segment)
 
         if isinstance(alpha_correction, str):
             correction_name = alpha_correction.lower()
