@@ -59,14 +59,22 @@ def test_fit():
     x = np.array([1, 2, 30, 2, 1])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([2]))
+    assert len(maxima["p_values"]) == 1
+    assert len(maxima["approx_bayes_factors"]) == 1
+    assert maxima["p_values"][0] < 0.05
+    assert maxima["approx_bayes_factors"][0] > 1
 
     x = np.array([30, 2, 1, 2, 1])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([0]))
+    assert len(maxima["p_values"]) == 1
+    assert len(maxima["approx_bayes_factors"]) == 1
 
     x = np.array([30, 2, 1, 2, 30])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([0, 4]))
+    assert len(maxima["p_values"]) == 2
+    assert len(maxima["approx_bayes_factors"]) == 2
 
 
 def test_jackknife():

@@ -11,6 +11,30 @@ from matplotlib.axes import Axes
 from scipy.stats import binomtest, fisher_exact
 
 
+def approximate_bayes_factor(p_value: float) -> float:
+    """
+    Approximate BF_10 from a p-value using Sellke, Bayarri, and Berger (2001).
+
+    Parameters
+    ----------
+    p_value : float
+        P-value for a detected mode.
+
+    Returns
+    -------
+    float
+        Approximate Bayes factor in favor of the alternative hypothesis.
+    """
+    if p_value == 0:
+        return np.inf
+
+    if p_value <= 1 / np.e:
+        bf_01 = (-np.e * p_value * np.log(p_value)) / (1 - p_value)
+        return 1 / bf_01
+
+    return np.nan
+
+
 def perform_fisher_test(
     x: np.ndarray, candidate: int, left_min: int, right_min: int
 ) -> Tuple[float, float]:
@@ -135,6 +159,8 @@ class ReMoDe:
         self.alpha_cor: Optional[float] = None
         self.statistical_test = statistical_test
         self.modes: np.ndarray = np.array([])
+        self.p_values: np.ndarray = np.array([])
+        self.approx_bayes_factors: np.ndarray = np.array([])
         self.xt: np.ndarray = np.array([])
         self.levels: np.ndarray = np.array([])
 
@@ -164,7 +190,7 @@ class ReMoDe:
 
         return np.histogram(xt, bins=levels_h)[0]
 
-    def _find_maxima(self, xt: np.ndarray) -> np.ndarray:
+    def _find_maxima(self, xt: np.ndarray) -> list:
         """
         Finds the local maxima in the input data.
 
@@ -175,11 +201,11 @@ class ReMoDe:
 
         Returns
         -------
-        np.ndarray
-            The indices of the local maxima in the input data.
+        list
+            Pairs of local mode indices and p-values.
         """
         if len(xt) < 3:
-            return np.array([], dtype=int)
+            return []
 
         result = []
         candidate = np.argmax(xt)
@@ -188,10 +214,14 @@ class ReMoDe:
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
             if p_left < self.alpha_cor and p_right < self.alpha_cor:
-                result.append(candidate)
-        result.extend(self._find_maxima(xt[:candidate]))
-        result.extend(self._find_maxima(xt[candidate + 1 :]) + candidate + 1)
-        return np.unique(result)
+                result.append((candidate, max(p_left, p_right)))
+
+        left = self._find_maxima(xt[:candidate])
+        right = [
+            (idx + candidate + 1, p_value)
+            for idx, p_value in self._find_maxima(xt[candidate + 1 :])
+        ]
+        return result + left + right
 
     def fit(
         self, xt: np.ndarray, set_data: bool = True, levels: np.ndarray = np.array([])
@@ -219,8 +249,21 @@ class ReMoDe:
         """
         self.alpha_cor = self._create_alpha_correction(len(xt), self.alpha)
         xt_padded: np.ndarray = np.concatenate((np.array([0]), xt, np.array([0])))
-        modes = self._find_maxima(xt_padded)
-        modes -= 1
+        mode_details = self._find_maxima(xt_padded)
+        if len(mode_details) == 0:
+            modes = np.array([], dtype=int)
+            p_values = np.array([], dtype=float)
+            approx_bayes_factors = np.array([], dtype=float)
+        else:
+            modes = np.array([mode_index - 1 for mode_index, _ in mode_details], dtype=int)
+            p_values = np.array([p_value for _, p_value in mode_details], dtype=float)
+
+            sort_order = np.argsort(modes)
+            modes = modes[sort_order]
+            p_values = p_values[sort_order]
+            approx_bayes_factors = np.array(
+                [approximate_bayes_factor(p_value) for p_value in p_values], dtype=float
+            )
 
         if len(levels) == 0:
             self.levels = np.arange(len(xt))
@@ -230,10 +273,14 @@ class ReMoDe:
         if set_data:
             self.xt = xt
             self.modes = modes
+            self.p_values = p_values
+            self.approx_bayes_factors = approx_bayes_factors
 
         return {
             "nr_of_modes": len(modes),
             "modes": modes,
+            "p_values": p_values,
+            "approx_bayes_factors": approx_bayes_factors,
             "xt": xt,
             "alpha_after_correction": self.alpha_cor,
         }
