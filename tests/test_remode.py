@@ -1,6 +1,7 @@
 """Tests for the ReMoDe class."""
 import numpy as np
 from remode import ReMoDe, perform_fisher_test, perform_binomial_test
+from remode.remode import count_descriptive_peaks
 
 
 def test_perform_fisher_test():
@@ -37,14 +38,23 @@ def test_remode_initialization():
         alpha=0.05, alpha_correction="none", statistical_test=perform_fisher_test
     )
     assert remode.alpha == 0.05
-    assert remode._create_alpha_correction(10, 0.05) == 0.05
+    assert remode._create_alpha_correction(np.arange(10), 0.05) == 0.05
     assert remode.statistical_test == perform_fisher_test
 
     remode = ReMoDe(
         alpha=0.05, alpha_correction="max_modes", statistical_test=perform_fisher_test
     )
-    assert remode._create_alpha_correction(10, 0.05) == 0.01
+    assert remode._create_alpha_correction(np.arange(10), 0.05) == 0.01
     assert remode.statistical_test == perform_fisher_test
+
+    remode = ReMoDe(alpha=0.05, statistical_test=perform_fisher_test)
+    assert remode._create_alpha_correction(np.array([0, 2, 0, 3, 0]), 0.05) == 0.025
+    assert remode.statistical_test == perform_fisher_test
+
+
+def test_count_descriptive_peaks():
+    assert count_descriptive_peaks(np.array([0, 2, 0, 3, 0])) == 2
+    assert count_descriptive_peaks(np.array([1, 1, 1, 1])) == 0
 
 
 def test_format_data():

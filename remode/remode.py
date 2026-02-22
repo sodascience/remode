@@ -11,6 +11,33 @@ from matplotlib.axes import Axes
 from scipy.stats import binomtest, fisher_exact
 
 
+def count_descriptive_peaks(x: np.ndarray) -> int:
+    """
+    Count descriptive peaks in a histogram-like vector, matching the R implementation.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Histogram counts.
+
+    Returns
+    -------
+    int
+        Number of descriptive peaks.
+    """
+    if len(x) < 2:
+        return 0
+
+    signs = np.concatenate((np.array([-1]), np.sign(np.diff(x))))
+    x_filtered = x[signs != 0]
+
+    if len(x_filtered) < 2:
+        return 0
+
+    signs = np.concatenate((np.array([-1]), np.sign(np.diff(x_filtered))))
+    return int(np.sum(np.diff(signs) < 0))
+
+
 def approximate_bayes_factor(p_value: float) -> float:
     """
     Approximate BF_10 from a p-value using Sellke, Bayarri, and Berger (2001).
@@ -115,7 +142,9 @@ class ReMoDe:
     alpha : float
         The significance level for the statistical tests. Default is 0.05.
     alpha_correction : str or function
-        The method for correcting the significance level for multiple comparisons. Options are "max_modes" and "none". Default is "none".
+        The method for correcting the significance level for multiple comparisons.
+        Options are "descriptive_peaks", "max_modes", and "none".
+        Default is "descriptive_peaks".
     statistical_test : function
         The statistical test to use for identifying local maxima. Options are `perform_fisher_test` and `perform_binomial_test`. Default is `perform_fisher_test`.
 
@@ -132,29 +161,53 @@ class ReMoDe:
     def __init__(
         self,
         alpha: float = 0.05,
-        alpha_correction: Union[Literal["max_modes", "none"], Callable] = "none",
+        alpha_correction: Union[
+            Literal["descriptive_peaks", "max_modes", "none"], Callable
+        ] = "descriptive_peaks",
         statistical_test: Callable = perform_fisher_test,
     ):
         self.alpha = alpha
 
+        def _segment_length(segment: Union[np.ndarray, int]) -> int:
+            if np.isscalar(segment):
+                return int(segment)
+            return len(segment)
+
         if isinstance(alpha_correction, str):
-            if alpha_correction.lower() == "none":
-                self._create_alpha_correction = lambda length, alpha: alpha
-            elif alpha_correction.lower() == "max_modes":
-                self._create_alpha_correction = lambda length, alpha: alpha / (
-                    np.floor((length + 1) / 2)
+            correction_name = alpha_correction.lower()
+            if correction_name == "none":
+                self._create_alpha_correction = lambda segment, alpha: alpha
+            elif correction_name == "max_modes":
+                self._create_alpha_correction = (
+                    lambda segment, alpha: alpha
+                    / np.floor((_segment_length(segment) + 1) / 2)
+                )
+            elif correction_name == "descriptive_peaks":
+                self._create_alpha_correction = (
+                    lambda segment, alpha: alpha
+                    / max(1, count_descriptive_peaks(np.asarray(segment)))
+                )
+            else:
+                raise ValueError(
+                    "The alpha_correction argument must be a function or one of "
+                    "'descriptive_peaks', 'max_modes', or 'none'."
                 )
         else:
-            # Test if the provided function is valid (has one argument)
             if not callable(alpha_correction):
                 raise ValueError(
-                    "The alpha_correction argument must be a function or one of 'max_modes' or 'none'."
+                    "The alpha_correction argument must be a function or one of "
+                    "'descriptive_peaks', 'max_modes', or 'none'."
                 )
-            elif len(alpha_correction.__code__.co_varnames) != 2:
-                raise ValueError(
-                    "The alpha_correction function must take two arguments (the legnth of the bins and the alpha level)."
-                )
-            self._create_alpha_correction = alpha_correction
+
+            def _create_alpha_correction(
+                segment: Union[np.ndarray, int], alpha_level: float
+            ) -> float:
+                try:
+                    return alpha_correction(segment, alpha_level)
+                except TypeError:
+                    return alpha_correction(_segment_length(segment), alpha_level)
+
+            self._create_alpha_correction = _create_alpha_correction
 
         self.alpha_cor: Optional[float] = None
         self.statistical_test = statistical_test
@@ -208,12 +261,13 @@ class ReMoDe:
             return []
 
         result = []
+        alpha_cor = self._create_alpha_correction(xt, self.alpha)
         candidate = np.argmax(xt)
         if candidate != 0 and candidate != len(xt) - 1:
             left_min = np.argmin(xt[:candidate])
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
-            if p_left < self.alpha_cor and p_right < self.alpha_cor:
+            if p_left < alpha_cor and p_right < alpha_cor:
                 result.append((candidate, max(p_left, p_right)))
 
         left = self._find_maxima(xt[:candidate])
@@ -247,8 +301,9 @@ class ReMoDe:
         Dict[str, Any]
             A dictionary containing the detected modes and their properties. The keys of the dictionary are the indices of the modes, and the values are the properties of the modes.
         """
-        self.alpha_cor = self._create_alpha_correction(len(xt), self.alpha)
+        xt = np.asarray(xt)
         xt_padded: np.ndarray = np.concatenate((np.array([0]), xt, np.array([0])))
+        self.alpha_cor = self._create_alpha_correction(xt_padded, self.alpha)
         mode_details = self._find_maxima(xt_padded)
         if len(mode_details) == 0:
             modes = np.array([], dtype=int)
