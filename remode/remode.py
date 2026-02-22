@@ -267,7 +267,11 @@ class ReMoDe:
             left_min = np.argmin(xt[:candidate])
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
-            if p_left < alpha_cor and p_right < alpha_cor:
+            if self.statistical_test is perform_fisher_test:
+                p_value = 1 - (1 - p_left) * (1 - p_right)
+                if p_value < alpha_cor:
+                    result.append((candidate, p_value))
+            elif p_left < alpha_cor and p_right < alpha_cor:
                 result.append((candidate, max(p_left, p_right)))
 
         left = self._find_maxima(xt[:candidate])

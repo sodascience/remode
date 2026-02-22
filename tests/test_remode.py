@@ -87,6 +87,32 @@ def test_fit():
     assert len(maxima["approx_bayes_factors"]) == 2
 
 
+def test_fit_returns_r_parity_statistics_fisher():
+    remode = ReMoDe(statistical_test=perform_fisher_test)
+    x = np.array([70, 80, 110, 30, 70, 100, 90, 120])
+
+    result = remode.fit(x)
+
+    assert np.array_equal(result["modes"], np.array([2, 7]))
+    assert np.isclose(result["p_values"][0], 1.129097e-13, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][0], 1.0929e11, rtol=1e-5)
+    assert result["p_values"][1] == 0
+    assert np.isinf(result["approx_bayes_factors"][1])
+
+
+def test_fit_returns_r_parity_statistics_binomial():
+    remode = ReMoDe(statistical_test=perform_binomial_test)
+    x = np.array([70, 80, 110, 30, 70, 100, 90, 120])
+
+    result = remode.fit(x)
+
+    assert np.array_equal(result["modes"], np.array([2, 7]))
+    assert np.isclose(result["p_values"][0], 3.12457e-12, rtol=1e-5)
+    assert np.isclose(result["p_values"][1], 7.52316e-37, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][0], 4.44432e9, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][1], 5.87893e33, rtol=1e-5)
+
+
 def test_jackknife():
     remode = ReMoDe()
     remode.xt = np.array([1, 2, 3, 2, 1])
