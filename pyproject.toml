@@ -1,9 +1,5 @@
 [build-system]
-requires = [
-  "setuptools>=42",
-  "wheel",
-  "setuptools_scm[toml]>=6.0"
-]
+requires = ["setuptools>=61", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -31,7 +27,6 @@ dynamic = ["version"]
 
 
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -41,15 +36,18 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-
-[tool.setuptools_scm]
-write_to = "remode/_version.py"
-
-
 [project.optional-dependencies]
 test = [
     "ruff", "pytest", "mypy"
 ]
+
+[tool.setuptools_scm]
+write_to = "remode/_version.py"
+tag_regex = "^(?:v)?(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+local_scheme = "no-local-version"
+
+[tool.setuptools.packages.find]
+include = ["remode*"]
 
 [project.urls]
 homepage = "https://github.com/sodascience/remode"

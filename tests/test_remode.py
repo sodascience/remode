@@ -1,6 +1,8 @@
 """Tests for the ReMoDe class."""
 import numpy as np
+import pytest
 from remode import ReMoDe, perform_fisher_test, perform_binomial_test
+from remode.remode import count_descriptive_peaks
 
 
 def test_perform_fisher_test():
@@ -37,14 +39,23 @@ def test_remode_initialization():
         alpha=0.05, alpha_correction="none", statistical_test=perform_fisher_test
     )
     assert remode.alpha == 0.05
-    assert remode._create_alpha_correction(10, 0.05) == 0.05
+    assert remode._create_alpha_correction(np.arange(10), 0.05) == 0.05
     assert remode.statistical_test == perform_fisher_test
 
     remode = ReMoDe(
         alpha=0.05, alpha_correction="max_modes", statistical_test=perform_fisher_test
     )
-    assert remode._create_alpha_correction(10, 0.05) == 0.01
+    assert remode._create_alpha_correction(np.arange(10), 0.05) == 0.01
     assert remode.statistical_test == perform_fisher_test
+
+    remode = ReMoDe(alpha=0.05, statistical_test=perform_fisher_test)
+    assert remode._create_alpha_correction(np.array([0, 2, 0, 3, 0]), 0.05) == 0.025
+    assert remode.statistical_test == perform_fisher_test
+
+
+def test_count_descriptive_peaks():
+    assert count_descriptive_peaks(np.array([0, 2, 0, 3, 0])) == 2
+    assert count_descriptive_peaks(np.array([1, 1, 1, 1])) == 0
 
 
 def test_format_data():
@@ -59,14 +70,48 @@ def test_fit():
     x = np.array([1, 2, 30, 2, 1])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([2]))
+    assert len(maxima["p_values"]) == 1
+    assert len(maxima["approx_bayes_factors"]) == 1
+    assert maxima["p_values"][0] < 0.05
+    assert maxima["approx_bayes_factors"][0] > 1
 
     x = np.array([30, 2, 1, 2, 1])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([0]))
+    assert len(maxima["p_values"]) == 1
+    assert len(maxima["approx_bayes_factors"]) == 1
 
     x = np.array([30, 2, 1, 2, 30])
     maxima = remode.fit(x)
     assert np.array_equal(maxima["modes"], np.array([0, 4]))
+    assert len(maxima["p_values"]) == 2
+    assert len(maxima["approx_bayes_factors"]) == 2
+
+
+def test_fit_returns_r_parity_statistics_fisher():
+    remode = ReMoDe(statistical_test=perform_fisher_test)
+    x = np.array([70, 80, 110, 30, 70, 100, 90, 120])
+
+    result = remode.fit(x)
+
+    assert np.array_equal(result["modes"], np.array([2, 7]))
+    assert np.isclose(result["p_values"][0], 1.129097e-13, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][0], 1.0929e11, rtol=1e-5)
+    assert result["p_values"][1] == 0
+    assert np.isinf(result["approx_bayes_factors"][1])
+
+
+def test_fit_returns_r_parity_statistics_binomial():
+    remode = ReMoDe(statistical_test=perform_binomial_test)
+    x = np.array([70, 80, 110, 30, 70, 100, 90, 120])
+
+    result = remode.fit(x)
+
+    assert np.array_equal(result["modes"], np.array([2, 7]))
+    assert np.isclose(result["p_values"][0], 3.12457e-12, rtol=1e-5)
+    assert np.isclose(result["p_values"][1], 7.52316e-37, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][0], 4.44432e9, rtol=1e-5)
+    assert np.isclose(result["approx_bayes_factors"][1], 5.87893e33, rtol=1e-5)
 
 
 def test_jackknife():
@@ -76,12 +121,22 @@ def test_jackknife():
     assert len(resampled_data) == 5
 
 
-def test_evaluate_stability():
+def test_remode_stability():
     remode = ReMoDe()
     remode.xt = np.array([1, 2, 20, 2, 1])
     remode.modes = np.array([2])
-    result = remode.evaluate_stability(iterations=100, percentage_steps=5)
-    print(result["stable_until"])
+
+    np.random.seed(123)
+    result = remode.remode_stability(iterations=100, percentage_steps=5, plot=False)
+
     assert "location_stability" in result
     assert "stable_until" in result
-    assert result["stable_until"] == 75
+    assert 0 <= result["stable_until"] <= 100
+
+    np.random.seed(123)
+    with pytest.warns(DeprecationWarning):
+        alias_result = remode.evaluate_stability(
+            iterations=100, percentage_steps=5, plot=False
+        )
+
+    assert alias_result["stable_until"] == result["stable_until"]
