@@ -53,7 +53,7 @@ See also the tutorial [here](https://github.com/sodascience/remode/blob/main/tut
 
 Please cite the following paper:
 ```
-TBA
+Hoffstadt, M., Waldorp, L., Garcia‐Bernardo, J., & van der Maas, H. (2026). ReMoDe–Recursive modality detection in distributions of ordinal data. British Journal of Mathematical and Statistical Psychology.
 ```
 and the following software
 ```
