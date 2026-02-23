@@ -2,6 +2,9 @@
 
 `ReMoDe` (Recursive Mode Detection) is a Python library designed for the robust detection of modes in ordinal data distributions. It uses statistical tests, including Fisher's exact test and binomial tests, to determine if a given maximum in a data distribution is a true local maximum.
 
+**Are you an `R` user?** Please find the `R` version here: https://cran.r-project.org/web/packages/remode/index.html
+
+
 ### Features
 - Mode Detection: Identifies all potential local maxima in the dataset.
 - Statistical Tests: Implements Fisher's exact test and binomial tests to validate modes.
@@ -57,7 +60,7 @@ Hoffstadt, M., Waldorp, L., Garcia‐Bernardo, J., & van der Maas, H. (2026). Re
 ```
 and the following software
 ```
-Garcia-Bernardo, J., Hoffstadt, M., & van der Maas, H. L. J. (2025). ReMoDe: a Python library for efficient mode detection in ordinal data distributions. Zenodo. https://doi.org/10.5281/zenodo.15366121
+Garcia-Bernardo, J., Hoffstadt, M., Waldorp, L., & van der Maas, H. L. J. (2026). ReMoDe: a Python library for efficient mode detection in ordinal data distributions. Zenodo. https://doi.org/10.5281/zenodo.18743126
 ```
 
 ### Contributing
