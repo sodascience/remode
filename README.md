@@ -1,5 +1,11 @@
 # ReMoDe: a Python library for efficient mode detection in ordinal data distributions.
 
+[![Docs](https://readthedocs.org/projects/remode/badge/?version=latest)](https://remode.readthedocs.io/en/latest/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15366121.svg)](https://doi.org/10.5281/zenodo.15366121)
+[![CI](https://github.com/sodascience/remode/actions/workflows/ci.yml/badge.svg)](https://github.com/sodascience/remode/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/remode.svg)](https://pypi.org/project/remode/)
+[![Python versions](https://img.shields.io/pypi/pyversions/remode.svg)](https://pypi.org/project/remode/)
+
 `ReMoDe` (Recursive Mode Detection) is a Python library designed for the robust detection of modes in ordinal data distributions. It uses statistical tests, including Fisher's exact test and binomial tests, to determine if a given maximum in a data distribution is a true local maximum.
 
 **Are you an `R` user?** Please find the `R` version here: https://cran.r-project.org/web/packages/remode/index.html
