@@ -13,3 +13,7 @@
 ```{eval-rst}
 .. autofunction:: remode.perform_binomial_test
 ```
+
+```{eval-rst}
+.. autofunction:: remode.perform_bootstrap_test
+```

@@ -6,15 +6,16 @@
 [![PyPI](https://img.shields.io/pypi/v/remode.svg)](https://pypi.org/project/remode/)
 [![Python versions](https://img.shields.io/pypi/pyversions/remode.svg)](https://pypi.org/project/remode/)
 
-`ReMoDe` (Recursive Mode Detection) is a Python library designed for the robust detection of modes in ordinal data distributions. It uses statistical tests, including Fisher's exact test and binomial tests, to determine if a given maximum in a data distribution is a true local maximum.
+`ReMoDe` (Recursive Mode Detection) is a Python library designed for robust mode detection in ordinal data distributions. By default it uses a bootstrap significance test (with binomial and Fisher alternatives) to determine whether a candidate maximum is a true local mode.
 
 **Are you an `R` user?** Please find the `R` version here: https://cran.r-project.org/web/packages/remode/index.html
 
 
 ### Features
 - Mode Detection: Identifies all potential local maxima in the dataset.
-- Statistical Tests: Implements Fisher's exact test and binomial tests to validate modes.
+- Statistical Tests: Implements bootstrap (default), Fisher's exact, and binomial tests to validate modes.
 - Mode Statistics: Returns per-mode p-values and approximate Bayes factors.
+- Modality Definition: Supports `shape_based` (default) and `peak_based` definitions.
 - Data Formatting: Converts raw data into histogram format for analysis.
 - Stability Analysis: Includes functionality to assess the stability of detected modes using jackknife resampling.
 - Visualization: Provides methods to plot the histogram of data along with identified modes.
@@ -36,7 +37,7 @@ from remode import ReMoDe
 xt_count = [8, 20, 5, 2, 6, 2, 30]
 
 # Create an instance of ReMoDe
-detector = ReMoDe(alpha_correction="descriptive_peaks")  # default
+detector = ReMoDe()  # defaults: bootstrap test, descriptive_peaks correction, shape_based definition
 
 # Fit model
 results = detector.fit(xt_count)

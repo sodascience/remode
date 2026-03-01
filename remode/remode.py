@@ -2,14 +2,15 @@
 
 import warnings
 from collections import Counter
-from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple, Union
 
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.axes import Axes
-from scipy.stats import binomtest, fisher_exact
+from scipy.stats import binomtest, chisquare, fisher_exact
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 
 def count_descriptive_peaks(x: np.ndarray) -> int:
@@ -131,6 +132,59 @@ def perform_binomial_test(
     return p_left, p_right
 
 
+def perform_bootstrap_test(
+    x: np.ndarray,
+    candidate: int,
+    left_min: int,
+    right_min: int,
+    n_boot: int = 10000,
+    rng: Optional[np.random.Generator] = None,
+) -> Tuple[float, float]:
+    """
+    Perform the ReMoDe bootstrap significance test for a candidate mode.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        The input data array.
+    candidate : int
+        The index of the candidate maximum.
+    left_min : int
+        The index of the minimum value on the left side of the candidate maximum.
+    right_min : int
+        The index of the minimum value on the right side of the candidate maximum.
+    n_boot : int, optional
+        Number of bootstrap samples. Default is 10000.
+    rng : np.random.Generator, optional
+        Random number generator to use. If omitted, a new generator is created.
+
+    Returns
+    -------
+    Tuple[float, float]
+        Bootstrap p-value duplicated for left/right slots for compatibility with
+        the other significance test interfaces.
+    """
+    if n_boot <= 0:
+        raise ValueError("n_boot must be a positive integer.")
+
+    x = np.asarray(x, dtype=int)
+    sample_size = int(np.sum(x))
+    if sample_size <= 0:
+        return 1.0, 1.0
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # Equivalent to R's raw-data bootstrap sampling with replacement, but vectorized.
+    probs = x / sample_size
+    sampled_counts = rng.multinomial(sample_size, probs, size=n_boot)
+    candidate_dominates = (sampled_counts[:, candidate] > sampled_counts[:, left_min]) & (
+        sampled_counts[:, candidate] > sampled_counts[:, right_min]
+    )
+    p_value = 1 - (float(np.sum(candidate_dominates)) / n_boot)
+    return p_value, p_value
+
+
 class ReMoDe:
     """
     ReMoDe (Robust Mode Detection) is a class for detecting modes in a dataset.
@@ -146,8 +200,14 @@ class ReMoDe:
         The method for correcting the significance level for multiple comparisons.
         Options are "descriptive_peaks", "max_modes", and "none".
         Default is "descriptive_peaks".
-    statistical_test : function
-        The statistical test to use for identifying local maxima. Options are `perform_fisher_test` and `perform_binomial_test`. Default is `perform_fisher_test`.
+    statistical_test : str or function
+        The statistical test to use for identifying local maxima.
+        Options are "bootstrap", "binomial", "fisher", or a custom callable.
+        Default is "bootstrap".
+    definition : str
+        Underlying modality definition. If "shape_based", a uniform distribution
+        can be classified as unimodal. If "peak_based", a non-significant
+        chi-square uniformity test leads to zero detected modes.
 
     Methods
     -------
@@ -165,9 +225,17 @@ class ReMoDe:
         alpha_correction: Union[
             Literal["descriptive_peaks", "max_modes", "none"], Callable
         ] = "descriptive_peaks",
-        statistical_test: Callable = perform_fisher_test,
+        statistical_test: Union[
+            Literal["bootstrap", "binomial", "fisher"], Callable
+        ] = "bootstrap",
+        definition: Literal["shape_based", "peak_based"] = "shape_based",
+        n_boot: int = 10000,
+        random_state: Optional[int] = None,
     ):
         self.alpha = alpha
+        if n_boot <= 0:
+            raise ValueError("n_boot must be a positive integer.")
+        self.n_boot = int(n_boot)
 
         def _segment_length(segment: Union[np.ndarray, int]) -> int:
             if isinstance(segment, np.ndarray):
@@ -210,13 +278,65 @@ class ReMoDe:
 
             self._create_alpha_correction = _create_alpha_correction
 
+        if isinstance(statistical_test, str):
+            test_name = statistical_test.lower()
+            if test_name == "bootstrap":
+                bootstrap_rng = np.random.default_rng(random_state)
+                self.statistical_test = partial(
+                    perform_bootstrap_test,
+                    n_boot=self.n_boot,
+                    rng=bootstrap_rng,
+                )
+                self.sign_test = "bootstrap"
+            elif test_name == "binomial":
+                self.statistical_test = perform_binomial_test
+                self.sign_test = "binomial"
+            elif test_name == "fisher":
+                self.statistical_test = perform_fisher_test
+                self.sign_test = "fisher"
+            else:
+                raise ValueError(
+                    "The statistical_test argument must be a callable or one of "
+                    "'bootstrap', 'binomial', or 'fisher'."
+                )
+        else:
+            if not callable(statistical_test):
+                raise ValueError(
+                    "The statistical_test argument must be a callable or one of "
+                    "'bootstrap', 'binomial', or 'fisher'."
+                )
+            if statistical_test is perform_bootstrap_test:
+                bootstrap_rng = np.random.default_rng(random_state)
+                self.statistical_test = partial(
+                    perform_bootstrap_test,
+                    n_boot=self.n_boot,
+                    rng=bootstrap_rng,
+                )
+                self.sign_test = "bootstrap"
+            else:
+                self.statistical_test = statistical_test
+                if statistical_test is perform_fisher_test:
+                    self.sign_test = "fisher"
+                elif statistical_test is perform_binomial_test:
+                    self.sign_test = "binomial"
+                else:
+                    self.sign_test = "custom"
+
+        if not isinstance(definition, str):
+            raise ValueError("definition must be either 'shape_based' or 'peak_based'.")
+        definition_name = definition.lower()
+        if definition_name not in ("shape_based", "peak_based"):
+            raise ValueError("definition must be either 'shape_based' or 'peak_based'.")
+        self.definition = definition_name
+
         self.alpha_cor: Optional[float] = None
-        self.statistical_test = statistical_test
         self.modes: np.ndarray = np.array([])
         self.p_values: np.ndarray = np.array([])
         self.approx_bayes_factors: np.ndarray = np.array([])
         self.xt: np.ndarray = np.array([])
         self.levels: np.ndarray = np.array([])
+        self.uniform_distribution: bool = False
+        self.uniformity_p_value: float = np.nan
 
     def format_data(
         self, xt: Union[np.ndarray, list], levels: Optional[np.ndarray] = None
@@ -268,7 +388,7 @@ class ReMoDe:
             left_min = np.argmin(xt[:candidate])
             right_min = np.argmin(xt[candidate:]) + candidate
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
-            if self.statistical_test is perform_fisher_test:
+            if self.sign_test == "fisher":
                 p_value = 1 - (1 - p_left) * (1 - p_right)
                 if p_value < alpha_cor:
                     result.append((candidate, p_value))
@@ -325,6 +445,17 @@ class ReMoDe:
                 [approximate_bayes_factor(p_value) for p_value in p_values], dtype=float
             )
 
+        uniformity_p_value = np.nan
+        uniform_distribution = False
+        if self.definition == "peak_based" and np.sum(xt) > 0:
+            uniformity_p_value = float(chisquare(xt).pvalue)
+            # Match R behavior: fixed 0.05 threshold for the Pearson chi-square test.
+            if np.isfinite(uniformity_p_value) and uniformity_p_value > 0.05:
+                modes = np.array([], dtype=int)
+                p_values = np.array([], dtype=float)
+                approx_bayes_factors = np.array([], dtype=float)
+                uniform_distribution = True
+
         if len(levels) == 0:
             self.levels = np.arange(len(xt))
         else:
@@ -335,6 +466,8 @@ class ReMoDe:
             self.modes = modes
             self.p_values = p_values
             self.approx_bayes_factors = approx_bayes_factors
+            self.uniform_distribution = uniform_distribution
+            self.uniformity_p_value = uniformity_p_value
 
         return {
             "nr_of_modes": len(modes),
@@ -343,10 +476,14 @@ class ReMoDe:
             "approx_bayes_factors": approx_bayes_factors,
             "xt": xt,
             "alpha_after_correction": self.alpha_cor,
+            "sign_test": self.sign_test,
+            "definition": self.definition,
+            "uniform_distribution": uniform_distribution,
+            "uniformity_p_value": uniformity_p_value,
         }
 
     def plot_maxima(
-        self, ax: Optional[Axes] = None, format_plot: Optional[bool] = True
+        self, ax: Optional["Axes"] = None, format_plot: Optional[bool] = True
     ) -> None:
         """
         Formats the input data for mode detection.
@@ -368,6 +505,8 @@ class ReMoDe:
             raise ValueError("Please fit the model first before plotting the maxima.")
 
         if ax is None:
+            import matplotlib.pyplot as plt
+
             _, ax = plt.subplots()
 
         ax.bar(self.levels, self.xt, color="lightgrey", zorder=9, label=None)
@@ -543,6 +682,9 @@ class ReMoDe:
             stability_location_df = pd.DataFrame(columns=["Mode location", "Stability estimate"])
 
         if plot:
+            import matplotlib.gridspec as gridspec
+            import matplotlib.pyplot as plt
+
             plt.figure(figsize=(12, 4))
             gs = gridspec.GridSpec(1, 2)  # 1 row, 2 columns
 
