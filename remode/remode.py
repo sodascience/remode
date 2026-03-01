@@ -3,7 +3,7 @@
 import warnings
 from collections import Counter
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,9 @@ from scipy.stats import binomtest, chisquare, fisher_exact
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+
+
+ModeTestCallable = Callable[[np.ndarray, int, int, int], Tuple[float, float]]
 
 
 def count_descriptive_peaks(x: np.ndarray) -> int:
@@ -226,7 +229,7 @@ class ReMoDe:
             Literal["descriptive_peaks", "max_modes", "none"], Callable
         ] = "descriptive_peaks",
         statistical_test: Union[
-            Literal["bootstrap", "binomial", "fisher"], Callable
+            Literal["bootstrap", "binomial", "fisher"], ModeTestCallable
         ] = "bootstrap",
         definition: Literal["shape_based", "peak_based"] = "shape_based",
         n_boot: int = 10000,
@@ -278,22 +281,27 @@ class ReMoDe:
 
             self._create_alpha_correction = _create_alpha_correction
 
+        test_callable: ModeTestCallable
+        sign_test_name: str
         if isinstance(statistical_test, str):
             test_name = statistical_test.lower()
             if test_name == "bootstrap":
                 bootstrap_rng = np.random.default_rng(random_state)
-                self.statistical_test = partial(
-                    perform_bootstrap_test,
-                    n_boot=self.n_boot,
-                    rng=bootstrap_rng,
+                test_callable = cast(
+                    ModeTestCallable,
+                    partial(
+                        perform_bootstrap_test,
+                        n_boot=self.n_boot,
+                        rng=bootstrap_rng,
+                    ),
                 )
-                self.sign_test = "bootstrap"
+                sign_test_name = "bootstrap"
             elif test_name == "binomial":
-                self.statistical_test = perform_binomial_test
-                self.sign_test = "binomial"
+                test_callable = perform_binomial_test
+                sign_test_name = "binomial"
             elif test_name == "fisher":
-                self.statistical_test = perform_fisher_test
-                self.sign_test = "fisher"
+                test_callable = perform_fisher_test
+                sign_test_name = "fisher"
             else:
                 raise ValueError(
                     "The statistical_test argument must be a callable or one of "
@@ -307,20 +315,26 @@ class ReMoDe:
                 )
             if statistical_test is perform_bootstrap_test:
                 bootstrap_rng = np.random.default_rng(random_state)
-                self.statistical_test = partial(
-                    perform_bootstrap_test,
-                    n_boot=self.n_boot,
-                    rng=bootstrap_rng,
+                test_callable = cast(
+                    ModeTestCallable,
+                    partial(
+                        perform_bootstrap_test,
+                        n_boot=self.n_boot,
+                        rng=bootstrap_rng,
+                    ),
                 )
-                self.sign_test = "bootstrap"
+                sign_test_name = "bootstrap"
             else:
-                self.statistical_test = statistical_test
+                test_callable = cast(ModeTestCallable, statistical_test)
                 if statistical_test is perform_fisher_test:
-                    self.sign_test = "fisher"
+                    sign_test_name = "fisher"
                 elif statistical_test is perform_binomial_test:
-                    self.sign_test = "binomial"
+                    sign_test_name = "binomial"
                 else:
-                    self.sign_test = "custom"
+                    sign_test_name = "custom"
+
+        self.statistical_test = test_callable
+        self.sign_test = sign_test_name
 
         if not isinstance(definition, str):
             raise ValueError("definition must be either 'shape_based' or 'peak_based'.")
@@ -383,10 +397,10 @@ class ReMoDe:
 
         result = []
         alpha_cor = self._create_alpha_correction(xt, self.alpha)
-        candidate = np.argmax(xt)
+        candidate = int(np.argmax(xt))
         if candidate != 0 and candidate != len(xt) - 1:
-            left_min = np.argmin(xt[:candidate])
-            right_min = np.argmin(xt[candidate:]) + candidate
+            left_min = int(np.argmin(xt[:candidate]))
+            right_min = int(np.argmin(xt[candidate:]) + candidate)
             p_left, p_right = self.statistical_test(xt, candidate, left_min, right_min)
             if self.sign_test == "fisher":
                 p_value = 1 - (1 - p_left) * (1 - p_right)
