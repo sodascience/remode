@@ -349,8 +349,8 @@ class ReMoDe:
         self.approx_bayes_factors: np.ndarray = np.array([])
         self.xt: np.ndarray = np.array([])
         self.levels: np.ndarray = np.array([])
-        self.uniform_distribution: bool = False
-        self.uniformity_p_value: float = np.nan
+        self.uniform_distribution: Optional[bool] = None
+        self.uniformity_p_value: Optional[float] = None
 
     def format_data(
         self, xt: Union[np.ndarray, list], levels: Optional[np.ndarray] = None
@@ -459,16 +459,18 @@ class ReMoDe:
                 [approximate_bayes_factor(p_value) for p_value in p_values], dtype=float
             )
 
-        uniformity_p_value = np.nan
-        uniform_distribution = False
+        uniformity_p_value: Optional[float] = None
+        uniform_distribution: Optional[bool] = None
         if self.definition == "peak_based" and np.sum(xt) > 0:
             uniformity_p_value = float(chisquare(xt).pvalue)
+            uniform_distribution = bool(
+                np.isfinite(uniformity_p_value) and uniformity_p_value > 0.05
+            )
             # Match R behavior: fixed 0.05 threshold for the Pearson chi-square test.
-            if np.isfinite(uniformity_p_value) and uniformity_p_value > 0.05:
+            if uniform_distribution:
                 modes = np.array([], dtype=int)
                 p_values = np.array([], dtype=float)
                 approx_bayes_factors = np.array([], dtype=float)
-                uniform_distribution = True
 
         if len(levels) == 0:
             self.levels = np.arange(len(xt))

@@ -156,6 +156,8 @@ def test_peak_based_definition_uniform_distribution():
     peak_based = ReMoDe(statistical_test="fisher", definition="peak_based").fit(x)
 
     assert shape_based["nr_of_modes"] > 0
+    assert shape_based["uniform_distribution"] is None
+    assert shape_based["uniformity_p_value"] is None
     assert peak_based["nr_of_modes"] == 0
     assert bool(peak_based["uniform_distribution"])
     assert peak_based["uniformity_p_value"] > 0.05
