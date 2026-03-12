@@ -1,7 +1,7 @@
 # ReMoDe: a Python library for efficient mode detection in ordinal data distributions.
 
 [![Docs](https://readthedocs.org/projects/remode/badge/?version=latest)](https://remode.readthedocs.io/en/latest/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18743126.svg)](https://doi.org/10.5281/zenodo.18743126)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18980210.svg)](https://zenodo.org/records/18980210)
 [![CI](https://github.com/sodascience/remode/actions/workflows/ci.yml/badge.svg)](https://github.com/sodascience/remode/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/remode.svg)](https://pypi.org/project/remode/)
 [![Python versions](https://img.shields.io/pypi/pyversions/remode.svg)](https://pypi.org/project/remode/)
@@ -67,7 +67,7 @@ Hoffstadt, M., Waldorp, L., Garcia‐Bernardo, J., & van der Maas, H. (2026). Re
 ```
 and the following software
 ```
-Garcia-Bernardo, J., Hoffstadt, M., Waldorp, L., & van der Maas, H. L. J. (2026). ReMoDe: a Python library for efficient mode detection in ordinal data distributions. Zenodo. https://doi.org/10.5281/zenodo.18743126
+Garcia-Bernardo, J., Hoffstadt, M., Waldorp, L., & van der Maas, H. L. J. (2026). ReMoDe: a Python library for efficient mode detection in ordinal data distributions. Zenodo. https://zenodo.org/records/18980210
 ```
 
 ### Contributing
